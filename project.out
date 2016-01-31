@@ -1,0 +1,1005 @@
+SQL> SET ECHO ON
+SQL> /*
+SQL> CIS 353 - Database Design Project
+SQL> Kevin Harrison
+SQL> Matt Conflitti
+SQL> Conner Toney
+SQL> Tim Meese
+SQL> */
+SQL> --
+SQL> -- CREATING THE TABLES
+SQL> -- --------------------------------------------------------------------
+SQL> CREATE TABLE ForumUser(
+  2  UserID INTEGER,
+  3  username CHAR(15) NOT NULL,
+  4  password CHAR(25) NOT NULL,
+  5  email CHAR(28) NOT NULL,
+  6  groupID INTEGER DEFAULT 1 NOT NULL,
+  7  pic_id INTEGER NOT NULL,
+  8  star_power INTEGER DEFAULT 0 NOT NULL,
+  9  --
+ 10  --uIC1 : userID is primary key
+ 11  CONSTRAINT uIC1 PRIMARY KEY(UserID)
+ 12  );
+
+Table created.
+
+SQL> --
+SQL> CREATE TABLE UserGroup(
+  2  GroupID INTEGER,
+  3  GroupName CHAR(12) NOT NULL,
+  4  AdminFlag INTEGER,
+  5  --
+  6  --ugIC1 : GroupID is primary key
+  7  CONSTRAINT ugIC1 PRIMARY KEY (GroupID)
+  8  );
+
+Table created.
+
+SQL> --
+SQL> CREATE TABLE Forum(
+  2  ForumID INTEGER NOT NULL,
+  3  forumName CHAR(35) NOT NULL,
+  4  --
+  5  --fIC1 : ForumID is primary key
+  6  CONSTRAINT fIC1 PRIMARY KEY (ForumID)
+  7  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> ---
+SQL> CREATE TABLE Thread(
+  2  ThreadID INTEGER,
+  3  CloseFlag INTEGER DEFAULT 0 NOT NULL,
+  4  CreatorID INTEGER NOT NULL,
+  5  ParentThreadID INTEGER,
+  6  Title CHAR(60) NOT NULL,
+  7  --
+  8  --tIC1 : threadID is primary key
+  9  CONSTRAINT tIC1 PRIMARY KEY (ThreadID)
+ 10  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE Post(
+  2  PostID INTEGER NOT NULL,
+  3  ThreadID INTEGER NOT NULL,
+  4  Body CHAR(60) NOT NULL,
+  5  TimeStamp TIMESTAMP NOT NULL,
+  6  Flag INTEGER NOT NULL,
+  7  PostedByID INTEGER NOT NULL,
+  8  ParentPostID INTEGER,
+  9  ParentThreadID INTEGER,
+ 10  --
+ 11  --pIC1 : PostID is primary key
+ 12  CONSTRAINT pIC1 PRIMARY KEY (PostID,ThreadID)
+ 13  );
+
+Table created.
+
+SQL> --
+SQL> CREATE TABLE Moderators(
+  2  ForumID INTEGER,
+  3  ModeratorID INTEGER,
+  4  --
+  5  --mIC1 : forumID and ModeratorID composite key
+  6  CONSTRAINT mIC1 PRIMARY KEY(ForumID,ModeratorID)
+  7  );
+
+Table created.
+
+SQL> --
+SQL> --
+SQL> CREATE TABLE ForumHasThread(
+  2  ForumID INTEGER,
+  3  ThreadID INTEGER,
+  4  TimeStamp TIMESTAMP NOT NULL,
+  5  --
+  6  --fhtIC1 : forumID and ThreadID is primary key
+  7  CONSTRAINT fhtIC1 PRIMARY KEY (ForumID, ThreadID)
+  8  );
+
+Table created.
+
+SQL> --
+SQL> CREATE TABLE ProfilePic(
+  2  PicID INTEGER,
+  3  FilePath CHAR(15) NOT NULL,
+  4  --
+  5  --ppIC1 : PicID is primary key
+  6  CONSTRAINT ppIC1 PRIMARY KEY (PicID)
+  7  );
+
+Table created.
+
+SQL> --
+SQL> -- --------------------------------------------------------------------
+SQL> --ADD CHECKS,FOREIGN KEYS, ETC
+SQL> --
+SQL> ALTER TABLE ForumUser
+  2  ADD(
+  3  --uIC2 : groupID must be in userGroup table
+  4  CONSTRAINT uIC2 FOREIGN KEY(groupID) REFERENCES UserGroup(groupID),
+  5  --uIC3 : picID must be a picture
+  6  CONSTRAINT uIC3 FOREIGN KEY(pic_id) REFERENCES ProfilePic(PicID),
+  7  --uIC5 : username must be unique
+  8  CONSTRAINT uIC5 UNIQUE(username)
+  9  );
+
+Table altered.
+
+SQL> --
+SQL> ALTER TABLE UserGroup ADD(
+  2  --ugIC2 : AdminFlag contains a value between 0 and 5
+  3  CONSTRAINT ugIC2 CHECK (AdminFlag >= 0 AND AdminFlag <= 5)
+  4  );
+
+Table altered.
+
+SQL> --
+SQL> ALTER TABLE Thread
+  2  ADD(
+  3  --tIC2 : closeFlag must be 0 or 1
+  4  CONSTRAINT tIC2 CHECK (CloseFlag >= 0 AND CloseFlag <= 1),
+  5  --tIC3 : creator must be in user table
+  6  CONSTRAINT tIC3 FOREIGN KEY (CreatorID) REFERENCES ForumUser(UserID),
+  7  --tIC4 : parentthread must in thread table
+  8  CONSTRAINT tIC4 FOREIGN KEY (ParentThreadID) REFERENCES Thread(ThreadID)
+  9  	 DEFERRABLE INITIALLY DEFERRED,
+ 10  --tIC5 : threadID cannot equal ParentThreadID **two attr. 1 row check**
+ 11  CONSTRAINT tIC5 CHECK(ThreadID != ParentThreadID)
+ 12  );
+
+Table altered.
+
+SQL> --
+SQL> ALTER TABLE Post
+  2  ADD(
+  3  --pIC2 : PostedByID is foreign key to UserID
+  4  CONSTRAINT pIC2 FOREIGN KEY (PostedByID) REFERENCES ForumUser(UserID),
+  5  --pIC3 : ParentPostID,ParentThreadID is foreign key to PostID,ThreadID
+  6  CONSTRAINT pIC3 FOREIGN KEY (ParentPostID,ParentThreadID) REFERENCES Post(PostID,ThreadID)
+  7  	 ON DELETE CASCADE,
+  8  --pic4 : thread that post is in must exist
+  9  CONSTRAINT pIC4 FOREIGN KEY(ThreadID) REFERENCES Thread(ThreadID)
+ 10  );
+
+Table altered.
+
+SQL> --
+SQL> ALTER TABLE Moderators
+  2  ADD(
+  3  --mIC2 : forumID must be a forum
+  4  CONSTRAINT mIC2 FOREIGN KEY (ForumID) REFERENCES Forum(ForumID),
+  5  --mIC3 : moderatorID must be user
+  6  CONSTRAINT mIC3 FOREIGN KEY (ModeratorID) REFERENCES ForumUser(UserID)
+  7  );
+
+Table altered.
+
+SQL> --
+SQL> ALTER TABLE ForumHasThread
+  2  ADD(
+  3  --fhtIC2 : forumID must be in forum table
+  4  CONSTRAINT fhtIC2 FOREIGN KEY (ForumID) REFERENCES Forum(ForumID),
+  5  --fhtIC3 : threadID must be in thread table
+  6  CONSTRAINT fhtIC3 FOREIGN KEY (ThreadID) REFERENCES Thread(ThreadID)
+  7  );
+
+Table altered.
+
+SQL> --
+SQL> ALTER TABLE ProfilePic ADD(
+  2  --ppIC2: filepath must be unique
+  3  CONSTRAINT ppIC2 UNIQUE(FilePath)
+  4  );
+
+Table altered.
+
+SQL> --
+SQL> SET FEEDBACK OFF
+SQL> --=========================================
+SQL> --POPULATE DB
+SQL> --populate static usergroups
+SQL> INSERT INTO UserGroup VALUES (0,'RootAdmin',1);
+SQL> INSERT INTO UserGroup VALUES (1,'ForumAdmin',2);
+SQL> INSERT INTO UserGroup VALUES (2,'ThreadAdmin',3);
+SQL> INSERT INTO UserGroup VALUES (3,'PostAdmin',4);
+SQL> INSERT INTO UserGroup VALUES (4,'Normal',5);
+SQL> --
+SQL> --
+SQL> --populate profile pics
+SQL> INSERT INTO ProfilePic VALUES(1,'pic1.jpg');
+SQL> INSERT INTO ProfilePic VALUES(2,'pic2.jpg');
+SQL> INSERT INTO ProfilePic VALUES(3,'pic3.jpg');
+SQL> INSERT INTO ProfilePic VALUES(4,'pic4.jpg');
+SQL> INSERT INTO ProfilePic VALUES(5,'pic5.jpg');
+SQL> INSERT INTO ProfilePic VALUES(6,'pic6.jpg');
+SQL> INSERT INTO ProfilePic VALUES(7,'pic7.jpg');
+SQL> INSERT INTO ProfilePic VALUES(8,'pic8.jpg');
+SQL> INSERT INTO ProfilePic VALUES(9,'pic9.jpg');
+SQL> INSERT INTO ProfilePic VALUES(10,'pic10.jpg');
+SQL> --
+SQL> --
+SQL> --populate users
+SQL> INSERT INTO ForumUser VALUES (1,'conflitm','p@assword','conflittimat@gmail.com',0,1,1);
+SQL> INSERT INTO ForumUser VALUES (2,'harrisonkev','p@assword','harrisonkev@gmail.com',0,2,1);
+SQL> INSERT INTO ForumUser VALUES (3,'conrad','p@assword','toneyCon@gmail.com',1,3,3);
+SQL> INSERT INTO ForumUser VALUES (4,'meesetim','p@assword','meesetim@gmail.com',1,4,7);
+SQL> INSERT INTO ForumUser VALUES (5,'jill123','p@assword','jill123@gmail.com',4,5,9);
+SQL> INSERT INTO ForumUser VALUES (6,'benjamin','p@assword','benny@gmail.com',4,6,3);
+SQL> INSERT INTO ForumUser VALUES (7,'alexM','p@assword','martina@gmail.com',3,7,1);
+SQL> INSERT INTO ForumUser VALUES (8,'robertB','p@assword','Brob@gmail.com',3,8,19);
+SQL> INSERT INTO ForumUser VALUES (9,'jimmyJoe','p@assword','jimmyJoe@gmail.com',2,9,17);
+SQL> INSERT INTO ForumUser VALUES (10,'sweetCaroline','p@assword','carolineS@gmail.com',1,10,13);
+SQL> --
+SQL> --
+SQL> --populate forums
+SQL> INSERT INTO Forum VALUES (1,'General Discussion');
+SQL> INSERT INTO Forum VALUES (2,'Ask/Tell');
+SQL> INSERT INTO Forum VALUES (3,'Sports');
+SQL> INSERT INTO Forum VALUES (4,'Events');
+SQL> INSERT INTO Forum VALUES (5,'Questions, Comments and Suggestions');
+SQL> --
+SQL> --
+SQL> --populate threads
+SQL> INSERT INTO Thread VALUES(1, 0, 1, NULL, 'Announcement: Welcome to betaBoards!');
+SQL> INSERT INTO Thread VALUES(2, 1,  3, 1, 'Thread Rules');
+SQL> INSERT INTO Thread VALUES(3, 1, 1, NULL, 'Ask/Tell SubThread Rules');
+SQL> INSERT INTO Thread VALUES(4, 0, 4, NULL, 'NHL General Thread: November');
+SQL> INSERT INTO Thread VALUES(5, 0, 4, 4, 'NHL Gameday Thread 11/30');
+SQL> INSERT INTO Thread VALUES(20, 0, 10, NULL, 'Hello, I am new here!');
+SQL> --
+SQL> --
+SQL> --populate Post
+SQL> INSERT INTO Post VALUES(1,1,'This place is awesome!','15-Dec-01 07:03:08',1,1,NULL,NULL);
+SQL> INSERT INTO Post VALUES(2,1,'I like it here, too!','15-Dec-02 08:08:08',1,1,1,1);
+SQL> INSERT INTO Post VALUES(1,4,'Who caught that game?','15-Dec-02 08:18:48',1,2,3,NULL);
+SQL> INSERT INTO Post VALUES(2,4,'This place is awesome!','15-Dec-03 12:00:01',1,3,1,4);
+SQL> INSERT INTO Post VALUES(1,5,'This place is awesome!','15-Dec-04 02:33:44',1,4,2,NULL);
+SQL> INSERT INTO Post VALUES(2,5,'This place is awesome!','15-Dec-03 11:08:08',1,4,7,NULL);
+SQL> INSERT INTO Post VALUES(3,5,'This place is awesome!','15-Dec-05 05:48:38',1,5,1,5);
+SQL> INSERT INTO Post VALUES(4,5,'This place is awesome!','15-Dec-05 05:49:58',1,5,3,5);
+SQL> INSERT INTO Post VALUES(1,20,'This place is awesome!','15-Dec-03 12:03:48',1,5,NULL,NULL);
+SQL> INSERT INTO Post VALUES(2,20,'This place is awesome!','15-Dec-04 08:08:08',1,6,NULL,NULL);
+SQL> INSERT INTO Post VALUES(3,20,'This place is awesome!','15-Dec-04 08:08:08',1,7,NULL,NULL);
+SQL> INSERT INTO Post VALUES(3,1,'This place is awesome!','15-Dec-04 08:08:08',1,7,NULL,NULL);
+SQL> INSERT INTO Post VALUES(4,1,'This place is awesome!','15-Dec-04 08:08:08',1,8,1,1);
+SQL> INSERT INTO Post VALUES(3,4,'This place is awesome!','15-Dec-04 08:08:08',1,8,2,4);
+SQL> INSERT INTO Post VALUES(4,4,'This place is awesome!','15-Dec-04 08:08:08',1,8,NULL,NULL);
+SQL> INSERT INTO Post VALUES(5,5,'This place is awesome!','15-Dec-04 08:08:08',1,9,Null,NULL);
+SQL> INSERT INTO Post VALUES(4,20,'This place is awesome!','15-Dec-04 08:08:08',1,9,3,20);
+SQL> INSERT INTO Post VALUES(5,20,'This place is awesome!','15-Dec-04 08:08:08',1,10,4,20);
+SQL> --
+SQL> --
+SQL> --
+SQL> --populate Moderators
+SQL> INSERT INTO Moderators VALUES(1,3);
+SQL> INSERT INTO Moderators VALUES(1,4);
+SQL> INSERT INTO Moderators VALUES(2,3);
+SQL> INSERT INTO Moderators VALUES(3,3);
+SQL> INSERT INTO Moderators VALUES(4,10);
+SQL> INSERT INTO Moderators VALUES(5,10);
+SQL> INSERT INTO Moderators VALUES(5,4);
+SQL> --
+SQL> --
+SQL> --populate forumhasthread
+SQL> INSERT INTO ForumHasThread VALUES(1,1,'15-Dec-01 08:08:08');
+SQL> INSERT INTO ForumHasThread VALUES(1,2,'15-Dec-02 08:08:08');
+SQL> INSERT INTO ForumHasThread VALUES(2,3,'15-Dec-03 08:08:08');
+SQL> INSERT INTO ForumHasThread VALUES(3,4,'15-Dec-04 08:08:08');
+SQL> INSERT INTO ForumHasThread VALUES(3,5,'15-Dec-05 08:08:08');
+SQL> INSERT INTO ForumHasThread VALUES(1,20,'15-Dec-06 08:08:08');
+SQL> --
+SQL> SET FEEDBACK ON
+SQL> COMMIT;
+
+Commit complete.
+
+SQL> --==========================================
+SQL> --SELECT ALL
+SQL> --
+SQL> SELECT * FROM ForumUser;
+
+    USERID USERNAME        PASSWORD                                             
+---------- --------------- -------------------------                            
+EMAIL                           GROUPID     PIC_ID STAR_POWER                   
+---------------------------- ---------- ---------- ----------                   
+         1 conflitm        p@assword                                            
+conflittimat@gmail.com                0          1          1                   
+                                                                                
+         2 harrisonkev     p@assword                                            
+harrisonkev@gmail.com                 0          2          1                   
+                                                                                
+         3 conrad          p@assword                                            
+toneyCon@gmail.com                    1          3          3                   
+                                                                                
+
+    USERID USERNAME        PASSWORD                                             
+---------- --------------- -------------------------                            
+EMAIL                           GROUPID     PIC_ID STAR_POWER                   
+---------------------------- ---------- ---------- ----------                   
+         4 meesetim        p@assword                                            
+meesetim@gmail.com                    1          4          7                   
+                                                                                
+         5 jill123         p@assword                                            
+jill123@gmail.com                     4          5          9                   
+                                                                                
+         6 benjamin        p@assword                                            
+benny@gmail.com                       4          6          3                   
+                                                                                
+
+    USERID USERNAME        PASSWORD                                             
+---------- --------------- -------------------------                            
+EMAIL                           GROUPID     PIC_ID STAR_POWER                   
+---------------------------- ---------- ---------- ----------                   
+         7 alexM           p@assword                                            
+martina@gmail.com                     3          7          1                   
+                                                                                
+         8 robertB         p@assword                                            
+Brob@gmail.com                        3          8         19                   
+                                                                                
+         9 jimmyJoe        p@assword                                            
+jimmyJoe@gmail.com                    2          9         17                   
+                                                                                
+
+    USERID USERNAME        PASSWORD                                             
+---------- --------------- -------------------------                            
+EMAIL                           GROUPID     PIC_ID STAR_POWER                   
+---------------------------- ---------- ---------- ----------                   
+        10 sweetCaroline   p@assword                                            
+carolineS@gmail.com                   1         10         13                   
+                                                                                
+
+10 rows selected.
+
+SQL> SELECT * FROM UserGroup;
+
+   GROUPID GROUPNAME     ADMINFLAG                                              
+---------- ------------ ----------                                              
+         0 RootAdmin             1                                              
+         1 ForumAdmin            2                                              
+         2 ThreadAdmin           3                                              
+         3 PostAdmin             4                                              
+         4 Normal                5                                              
+
+5 rows selected.
+
+SQL> SELECT * FROM Forum;
+
+   FORUMID FORUMNAME                                                            
+---------- -----------------------------------                                  
+         1 General Discussion                                                   
+         2 Ask/Tell                                                             
+         3 Sports                                                               
+         4 Events                                                               
+         5 Questions, Comments and Suggestions                                  
+
+5 rows selected.
+
+SQL> SELECT * FROM Thread;
+
+  THREADID  CLOSEFLAG  CREATORID PARENTTHREADID                                 
+---------- ---------- ---------- --------------                                 
+TITLE                                                                           
+------------------------------------------------------------                    
+         1          0          1                                                
+Announcement: Welcome to betaBoards!                                            
+                                                                                
+         2          1          3              1                                 
+Thread Rules                                                                    
+                                                                                
+         3          1          1                                                
+Ask/Tell SubThread Rules                                                        
+                                                                                
+
+  THREADID  CLOSEFLAG  CREATORID PARENTTHREADID                                 
+---------- ---------- ---------- --------------                                 
+TITLE                                                                           
+------------------------------------------------------------                    
+         4          0          4                                                
+NHL General Thread: November                                                    
+                                                                                
+         5          0          4              4                                 
+NHL Gameday Thread 11/30                                                        
+                                                                                
+        20          0         10                                                
+Hello, I am new here!                                                           
+                                                                                
+
+6 rows selected.
+
+SQL> SELECT * FROM Post;
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         1          1                                                           
+This place is awesome!                                                          
+15-DEC-01 07.03.08.000000 AM                                                    
+         1          1                                                           
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         2          1                                                           
+I like it here, too!                                                            
+15-DEC-02 08.08.08.000000 AM                                                    
+         1          1            1              1                               
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         1          4                                                           
+Who caught that game?                                                           
+15-DEC-02 08.18.48.000000 AM                                                    
+         1          2            3                                              
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         2          4                                                           
+This place is awesome!                                                          
+15-DEC-03 12.00.01.000000 PM                                                    
+         1          3            1              4                               
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         1          5                                                           
+This place is awesome!                                                          
+15-DEC-04 02.33.44.000000 AM                                                    
+         1          4            2                                              
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         2          5                                                           
+This place is awesome!                                                          
+15-DEC-03 11.08.08.000000 AM                                                    
+         1          4            7                                              
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         3          5                                                           
+This place is awesome!                                                          
+15-DEC-05 05.48.38.000000 AM                                                    
+         1          5            1              5                               
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         4          5                                                           
+This place is awesome!                                                          
+15-DEC-05 05.49.58.000000 AM                                                    
+         1          5            3              5                               
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         1         20                                                           
+This place is awesome!                                                          
+15-DEC-03 12.03.48.000000 PM                                                    
+         1          5                                                           
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         2         20                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1          6                                                           
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         3         20                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1          7                                                           
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         3          1                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1          7                                                           
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         4          1                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1          8            1              1                               
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         3          4                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1          8            2              4                               
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         4          4                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1          8                                                           
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         5          5                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1          9                                                           
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         4         20                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1          9            3             20                               
+                                                                                
+
+    POSTID   THREADID                                                           
+---------- ----------                                                           
+BODY                                                                            
+------------------------------------------------------------                    
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+      FLAG POSTEDBYID PARENTPOSTID PARENTTHREADID                               
+---------- ---------- ------------ --------------                               
+         5         20                                                           
+This place is awesome!                                                          
+15-DEC-04 08.08.08.000000 AM                                                    
+         1         10            4             20                               
+                                                                                
+
+18 rows selected.
+
+SQL> SELECT * FROM Moderators;
+
+   FORUMID MODERATORID                                                          
+---------- -----------                                                          
+         1           3                                                          
+         1           4                                                          
+         2           3                                                          
+         3           3                                                          
+         4          10                                                          
+         5           4                                                          
+         5          10                                                          
+
+7 rows selected.
+
+SQL> SELECT * FROM ForumHasThread;
+
+   FORUMID   THREADID                                                           
+---------- ----------                                                           
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+         1          1                                                           
+15-DEC-01 08.08.08.000000 AM                                                    
+                                                                                
+         1          2                                                           
+15-DEC-02 08.08.08.000000 AM                                                    
+                                                                                
+         2          3                                                           
+15-DEC-03 08.08.08.000000 AM                                                    
+                                                                                
+
+   FORUMID   THREADID                                                           
+---------- ----------                                                           
+TIMESTAMP                                                                       
+---------------------------------------------------------------------------     
+         3          4                                                           
+15-DEC-04 08.08.08.000000 AM                                                    
+                                                                                
+         3          5                                                           
+15-DEC-05 08.08.08.000000 AM                                                    
+                                                                                
+         1         20                                                           
+15-DEC-06 08.08.08.000000 AM                                                    
+                                                                                
+
+6 rows selected.
+
+SQL> SELECT * FROM ProfilePic;
+
+     PICID FILEPATH                                                             
+---------- ---------------                                                      
+         1 pic1.jpg                                                             
+         2 pic2.jpg                                                             
+         3 pic3.jpg                                                             
+         4 pic4.jpg                                                             
+         5 pic5.jpg                                                             
+         6 pic6.jpg                                                             
+         7 pic7.jpg                                                             
+         8 pic8.jpg                                                             
+         9 pic9.jpg                                                             
+        10 pic10.jpg                                                            
+
+10 rows selected.
+
+SQL> --
+SQL> --===========================================
+SQL> --QUERIES
+SQL> --
+SQL> -- 1.A join involving at least four relations.
+SQL> -- 5. GROUP BY , HA VING, and ORDER BY , all appearing in the same query
+SQL> --Get Usernames and ForumNames of Users that moderate the forums in order of most to least threads > 0.
+SQL> SELECT U.username,F.forumName,COUNT(*) as "# of Threads" FROM ForumUser U, Forum F, Moderators M, ForumHasThread T
+  2    WHERE U.userID = M.ModeratorID AND M.ForumID = F.ForumID AND F.ForumID = T.ForumID
+  3    GROUP BY U.username,F.forumName
+  4    HAVING COUNT(*) > 0
+  5    ORDER BY COUNT(*) DESC;
+
+USERNAME        FORUMNAME                           # of Threads                
+--------------- ----------------------------------- ------------                
+conrad          General Discussion                             3                
+meesetim        General Discussion                             3                
+conrad          Sports                                         2                
+conrad          Ask/Tell                                       1                
+
+4 rows selected.
+
+SQL> --
+SQL> -- 2. A self-join.
+SQL> --Find all users with same star_power below 8
+SQL> SELECT DISTINCT U.Username,U2.Username,U.star_power
+  2    FROM ForumUser U, ForumUser U2
+  3    WHERE U.star_power < 8 AND
+  4  	 U.star_power = U2.star_power AND
+  5  	 U.UserID < U2.UserID;
+
+USERNAME        USERNAME        STAR_POWER                                      
+--------------- --------------- ----------                                      
+conflitm        harrisonkev              1                                      
+conrad          benjamin                 3                                      
+harrisonkev     alexM                    1                                      
+conflitm        alexM                    1                                      
+
+4 rows selected.
+
+SQL> --
+SQL> -- 3. UNION, INTERSECT, and/or MINUS.
+SQL> --Find all users who have star power above 8 and
+SQL> --have made a post
+SQL> SELECT U.UserID,U.username
+  2    FROM ForumUser U
+  3    WHERE U.star_power > 8
+  4    INTERSECT
+  5  SELECT U.UserID,U.username
+  6    FROM ForumUser U, Post P
+  7    WHERE U.UserID = P.PostedByID;
+
+    USERID USERNAME                                                             
+---------- ---------------                                                      
+         5 jill123                                                              
+         8 robertB                                                              
+         9 jimmyJoe                                                             
+        10 sweetCaroline                                                        
+
+4 rows selected.
+
+SQL> --
+SQL> -- 4. SUM, AVG, MAX, and/or MIN.
+SQL> --Find average user star power.
+SQL> SELECT AVG(star_power) as "AVG Star Power"
+  2    FROM ForumUser;
+
+AVG Star Power                                                                  
+--------------                                                                  
+           7.4                                                                  
+
+1 row selected.
+
+SQL> --
+SQL> --
+SQL> -- 6. A correlated subquery.
+SQL> --Users that have star_power > 8 and is a moderator
+SQL> SELECT U.userID,U.username,U.star_power
+  2    FROM ForumUser U
+  3    WHERE U.star_power > 8 AND U.userID IN
+  4    (SELECT ModeratorID
+  5  	FROM Moderators
+  6  	 WHERE ModeratorID = U.userId);
+
+    USERID USERNAME        STAR_POWER                                           
+---------- --------------- ----------                                           
+        10 sweetCaroline           13                                           
+
+1 row selected.
+
+SQL> --
+SQL> -- 7. A non-correlated subquery.
+SQL> --Users that have star_power > 8 and not a moderator
+SQL> SELECT U.userID,U.username,U.star_power
+  2    FROM ForumUser U
+  3    WHERE U.star_power > 8 AND U.userID NOT IN
+  4    (SELECT ModeratorID
+  5  	FROM Moderators);
+
+    USERID USERNAME        STAR_POWER                                           
+---------- --------------- ----------                                           
+         5 jill123                  9                                           
+         8 robertB                 19                                           
+         9 jimmyJoe                17                                           
+
+3 rows selected.
+
+SQL> --
+SQL> -- 6. A correlated subquery.
+SQL> -- 8. A relational DIVISION query.
+SQL> --Find all users that have not posted in Thread 5
+SQL> SELECT U.UserID,U.Username
+  2    FROM ForumUser U
+  3    WHERE EXISTS (
+  4  	 SELECT T.ThreadID
+  5  	 FROM Thread T
+  6  	 WHERE T.ThreadID = 5
+  7  	 MINUS
+  8  	 SELECT T.ThreadID
+  9  	 FROM Thread T,Post P
+ 10  --Here is the correlated part
+ 11  	 WHERE U.UserID = P.PostedByID
+ 12  	 AND P.ThreadID = T.ThreadID
+ 13  	 AND T.ThreadID = 5
+ 14    );
+
+    USERID USERNAME                                                             
+---------- ---------------                                                      
+         1 conflitm                                                             
+         2 harrisonkev                                                          
+         3 conrad                                                               
+         6 benjamin                                                             
+         7 alexM                                                                
+         8 robertB                                                              
+        10 sweetCaroline                                                        
+
+7 rows selected.
+
+SQL> --
+SQL> -- 9. An outer join query.
+SQL> --Show all users and the thread they've created for those who
+SQL> --have created one.
+SQL> SELECT U.username,U.userID,T.ThreadID
+  2    FROM ForumUser U LEFT OUTER JOIN Thread T
+  3    ON T.CreatorID = U.userID;
+
+USERNAME            USERID   THREADID                                           
+--------------- ---------- ----------                                           
+conflitm                 1          1                                           
+conrad                   3          2                                           
+conflitm                 1          3                                           
+meesetim                 4          4                                           
+meesetim                 4          5                                           
+sweetCaroline           10         20                                           
+jill123                  5                                                      
+robertB                  8                                                      
+harrisonkev              2                                                      
+benjamin                 6                                                      
+alexM                    7                                                      
+
+USERNAME            USERID   THREADID                                           
+--------------- ---------- ----------                                           
+jimmyJoe                 9                                                      
+
+12 rows selected.
+
+SQL> --
+SQL> --=====================================
+SQL> --TEST CONSTRAINTS
+SQL> --
+SQL> --Testing : uIC1 : userID is primary key
+SQL> INSERT INTO ForumUser VALUES (2,'conflitm','p@assword','conflittimat@gmail.com',0,1,2);
+INSERT INTO ForumUser VALUES (2,'conflitm','p@assword','conflittimat@gmail.com',0,1,2)
+*
+ERROR at line 1:
+ORA-00001: unique constraint (CONFLITM.UIC1) violated 
+
+
+SQL> --
+SQL> --Testing : ugIC2 : AdminFlag contains a value between 0 and 5
+SQL> UPDATE UserGroup
+  2  SET AdminFlag=6
+  3  WHERE GroupID=3;
+UPDATE UserGroup
+*
+ERROR at line 1:
+ORA-02290: check constraint (CONFLITM.UGIC2) violated 
+
+
+SQL> --
+SQL> UPDATE UserGroup
+  2  SET AdminFlag=-1
+  3  WHERE GroupID=3;
+UPDATE UserGroup
+*
+ERROR at line 1:
+ORA-02290: check constraint (CONFLITM.UGIC2) violated 
+
+
+SQL> --
+SQL> --ppIC2: filepath must be unique
+SQL> INSERT INTO ProfilePic VALUES(20,'pic1.jpg');
+INSERT INTO ProfilePic VALUES(20,'pic1.jpg')
+*
+ERROR at line 1:
+ORA-00001: unique constraint (CONFLITM.PPIC2) violated 
+
+
+SQL> --
+SQL> --uIC2 : groupID must be in userGroup table
+SQL> UPDATE ForumUser SET groupID=99 WHERE UserID=1;
+UPDATE ForumUser SET groupID=99 WHERE UserID=1
+*
+ERROR at line 1:
+ORA-02291: integrity constraint (CONFLITM.UIC2) violated - parent key not found 
+
+
+SQL> --
+SQL> --tIC3 : creator must be in user table
+SQL> INSERT INTO Thread VALUES(12, 0, 99, NULL, 'Announcement: Welcome to betaBoards!');
+INSERT INTO Thread VALUES(12, 0, 99, NULL, 'Announcement: Welcome to betaBoards!')
+*
+ERROR at line 1:
+ORA-02291: integrity constraint (CONFLITM.TIC3) violated - parent key not found 
+
+
+SQL> --
+SQL> --tIC4 : parentthread must in thread table
+SQL> --WILL GET CAUGHT ON COMMIT BECAUSE DEFERRED
+SQL> INSERT INTO Thread VALUES(15,0, 1, 99, 'Announcement: Welcome to betaBoards!');
+
+1 row created.
+
+SQL> --
+SQL> --pIC3 : ParentPostID is foreign key to PostID, cascade deletion
+SQL> INSERT INTO Post VALUES(45,1,'This place is awesome!','15-Dec-01 08:08:08',1,1,2,99);
+INSERT INTO Post VALUES(45,1,'This place is awesome!','15-Dec-01 08:08:08',1,1,2,99)
+*
+ERROR at line 1:
+ORA-02291: integrity constraint (CONFLITM.PIC3) violated - parent key not found 
+
+
+SQL> DELETE FROM Post WHERE PostID=1 AND ThreadID=1;
+
+1 row deleted.
+
+SQL> --shouldn't exist
+SQL> SELECT postID FROM POST WHERE PostID=1 AND ThreadID=1;
+
+no rows selected
+
+SQL> --
+SQL> --testing tIC5 : parentthread cannot equal itself
+SQL> INSERT INTO Thread VALUES (50,1,2,50,'New Thread');
+INSERT INTO Thread VALUES (50,1,2,50,'New Thread')
+*
+ERROR at line 1:
+ORA-02290: check constraint (CONFLITM.TIC5) violated 
+
+
+SQL> --
+SQL> COMMIT;
+COMMIT
+*
+ERROR at line 1:
+ORA-02091: transaction rolled back 
+ORA-02291: integrity constraint (CONFLITM.TIC4) violated - parent key not found 
+
+
+SQL> --
+SQL> SPOOL OFF
